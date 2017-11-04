@@ -1,0 +1,104 @@
+Solution by Miko (Digital. Visit http://deepinsecurity.blogspot.com)
+
+You may also find this solution with pictures at my blog: http://deepinsecurity.blogspot.com/2013/09/crackmes-reverse-trvcrackme-v10-mips.html
+
+In this task we are given a binary compiled for MIPS architecture. Therefore to execute it you have to find workstation that have MIPS architecture or emulate its behavior. Of course you can produce keygen without even executing it, because the logic is quite straighforward. By the time I managed to execute it I have already understood what it does.
+
+Overall binary logic:
+This binary greets us, prompts for username and serial and then terminates if given username,serial pair is wrong.
+
+Let's look at assembly. Binary contains strings that are printed, and one of them is a congratulation message "[+] Congrats. Write a keygen & tutorial.". By finding its usage we may detect our goal execution route. 
+
+We have to reach this part of code:
+.text:00400EB8                 lui     $v0, 64
+.text:00400EBC                 addiu   $a0, $v0, (aCongrats_Write - 0x400000)  # "[+] Congrats. Write a keygen & tutorial"...
+.text:00400EC0                 la      $v0, puts
+.text:00400EC4                 or      $1, $0
+.text:00400EC8                 move    $t9, $v0
+.text:00400ECC                 jalr    $t9
+
+The puts function is called with the congratulation string if two calculated values are equal.
+
+.text:00400EA4                 lw      $v1, 0x228+parsed_username($fp)
+.text:00400EA8                 lw      $v0, 0x228+parsed_serial($fp)
+.text:00400EAC                 or      $1, $0
+.text:00400EB0                 bne     $v1, $v0, bad
+
+*variables were renamed
+
+ We will see later that the first value(parsed_username) is a function result from the username and the second one(parsed_serial) is result of another function from the serial code. So we have to make those values equal.
+
+Let's take a look at places where something is read from standard input. There are two calls to the fgets function each of which is followed by call to the functions. Those functions will check input and then produce value that will be used later in test for equality. Function after the username fgets checks that each character is between ("A" and "{")  and if it is lowercase letter it converts it to the uppercase letter by subtracting 0x20(or 32 in decimal) verifies that it is a byte by bitwise-anding it with 0xFF and sign-extends by performing two shifts: one is logical which places zero and the second one is ariphmetical which places sign bit as shifted-in bit.
+
+.text:004009CC                 lw      $v0, 0x30+i($fp)
+.text:004009D0                 lw      $v1, 0x30+username($fp)
+.text:004009D4                 or      $1, $0
+.text:004009D8                 addu    $v0, $v1, $v0
+.text:004009DC                 lw      $v1, 0x30+i($fp)
+.text:004009E0                 lw      $a0, 0x30+username($fp)
+.text:004009E4                 or      $1, $0
+.text:004009E8                 addu    $v1, $a0, $v1
+.text:004009EC                 lb      $v1, 0($v1)
+.text:004009F0                 or      $1, $0
+.text:004009F4                 andi    $v1, 0xFF
+.text:004009F8                 addiu   $v1, -32
+.text:004009FC                 andi    $v1, 0xFF
+.text:00400A00                 sll     $v1, 24
+.text:00400A04                 sra     $v1, 24
+.text:00400A08                 sb      $v1, 0($v0)
+
+Then all character codes are summed and the sum is xored with 0x3421. This is how we get the first compared value.
+
+.text:00400AD0                 lw      $v0, 0x30+i($fp)
+.text:00400AD4                 lw      $v1, 0x30+username($fp)
+.text:00400AD8                 or      $1, $0
+.text:00400ADC                 addu    $v0, $v1, $v0
+.text:00400AE0                 lb      $v0, 0($v0)
+.text:00400AE4                 lw      $v1, 0x30+char_sum($fp)
+.text:00400AE8                 or      $1, $0
+.text:00400AEC                 addu    $v0, $v1, $v0
+.text:00400AF0                 sw      $v0, 0x30+char_sum($fp)
+.text:00400AF4                 lw      $v0, 0x30+i($fp)
+.text:00400AF8                 or      $1, $0
+.text:00400AFC                 addiu   $v0, 1
+
+...
+
+.text:00400B24                 lw      $v0, 0x30+char_sum($fp)
+.text:00400B28                 or      $1, $0
+.text:00400B2C                 xori    $v0, 0x3421
+
+Let's look at the serial number parsing function. Firstly it makes sure that serial number consists of digits letters. Then it simply calls atoi function and xors the result with 0x5786. And that is the second compared value.
+
+.text:00400CCC                 lw      $a0, 0x120+serial($fp)
+.text:00400CD0                 la      $v0, atoi
+.text:00400CD4                 or      $1, $0
+.text:00400CD8                 move    $t9, $v0
+.text:00400CDC                 jalr    $t9
+.text:00400CE0                 or      $1, $0
+.text:00400CE4                 lw      $gp, 0x120+globals($fp)
+.text:00400CE8                 xori    $v0, 0x5786
+
+
+So all we have to do is sum up all our username letters converted to uppercase and xor the sum value with (0x3421 xored with 0x5786), and that will be the serial code.
+
+Keygen code:
+
+puts "Enter your name:"
+username = gets()
+sum = 0
+username.scan(/./).each do |c|
+  sum += c.upcase.ord
+end
+
+puts "Your serial:"
+puts (sum ^ 0x3421 ^ 0x5786)
+
+Valid username - serial pair:
+
+root@debian-mipsel:~# ./TRVCrackme
+*** TRVCrackme by +NCR/CRC! [ReVeRsEr] ***
+[+] Little crackme to feed you brain :)
+[+] Enter your name: Digital
+[+] Enter your serial: 25177
+[+] Congrats. Write a keygen & tutorial.

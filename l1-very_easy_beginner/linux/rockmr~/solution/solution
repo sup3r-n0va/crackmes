@@ -1,0 +1,97 @@
+- qnix@0x80.org
+
+Tool used r2:
+
+* First we have sym._init_ that runs before sym.main it will :
+
+system("killall gdb")
+system("killall strace")
+ptrace() -> your cheating
+malloc and setup par[64] "aleef"
+
+* then sym.main
+
+it does something randomized to get a key within the range of 0x00-0x09 that will
+be used to xor 0x8 bytes of par three times if the first par[0] is 0x68 then repeat.
+the getxorval() looks something like this :
+
+int
+getxorval()
+{
+        srand(time(NULL));
+        int r = rand();
+        long int key = (long int)0x66666667 * (long int)r;
+        unsigned int eax = key & 0xffffffff;
+        unsigned int edx = key >> 32;
+
+        edx = edx >> 0x2;
+        eax = eax >> 0x1f;
+        edx = edx-eax;
+        eax = edx;
+        eax = eax << 0x2;
+        eax = eax+edx;
+        eax = eax+eax;
+        edx = (unsigned)r;
+        edx = edx-eax;
+        return edx;
+}
+
+anyway after this step we call fgets to get 0x08 bytes from stdin saving it to sym.password
+|           0x080487a8     a130a00408       mov eax, [sym.stdinGLIBC_2.0]
+|           0x080487ad     89442408         mov [esp+0x8], eax
+|           0x080487b1     c744240408000000 mov dword [esp+0x4], 0x8
+|           0x080487b9     c704243ca00408   mov dword [esp], sym.password
+|           0x080487c0     e82bfcffff       call dword imp.fgets
+
+
+the comes the tricking section
+|           0x080487c5     0fb60540a00408   movzx eax, byte [0x804a040]
+|           0x080487cc     3c6f             cmp al, 0x6f
+| ========< 0x080487ce     7407             jz loc.080487d7
+|           0x080487d0     c6053da0040861   mov byte [0x804a03d], 0x61
+| --------> 0x080487d7     b800000000       mov eax, 0x0
+|           0x080487dc     c9               leave
+\           0x080487dd     c3               ret
+
+similar code >
+if(password[3] != 'o') {
+	password[1] = 'a';
+	return 0;
+} else {
+	return 0;
+}
+
+when ever a return is taken sym._finit_ will be executed
+
+
+[0x08048490]> pdf @ sym._finit_
+          0x08048544  sym._finit_:
+          0x08048544     55               push ebp
+          0x08048545     89e5             mov ebp, esp
+          0x08048547     83ec18           sub esp, 0x18
+          0x0804854a     0fb6053ca00408   movzx eax, byte [sym.password]
+          0x08048551     3c68             cmp al, 0x68
+      ,=< 0x08048553     752d             jnz 0x8048582
+      |   0x08048555     0fb6053da00408   movzx eax, byte [0x804a03d]
+      |   0x0804855c     3c65             cmp al, 0x65
+     ,==< 0x0804855e     7522             jnz 0x8048582
+     ||   0x08048560     0fb6053ea00408   movzx eax, byte [0x804a03e]
+     ||   0x08048567     3c6c             cmp al, 0x6c
+    ,===< 0x08048569     7517             jnz 0x8048582
+    |||   0x0804856b     0fb6053fa00408   movzx eax, byte [0x804a03f]
+    |||   0x08048572     3c6c             cmp al, 0x6c
+   ,====< 0x08048574     750c             jnz 0x8048582
+   ||||   0x08048576     c70424b0880408   mov dword [esp], str.YouWIN,congratulations...
+   ||||   0x0804857d     e89efeffff       call dword imp.puts
+   ||||      ; imp.puts() (imp.puts+0)
+   ```-> 0x08048582     c9               leave
+          0x08048583     c3               ret
+          ; ------------
+
+which will compare sym.password to 'hell' and the 'o' we used is to not change the 'e'
+value so the password is 'hello'. par[] and the xoring block is not used.
+
+[0x08048490]> !./crackme_x86
+What is the password?
+hello
+You WIN, congratulations...

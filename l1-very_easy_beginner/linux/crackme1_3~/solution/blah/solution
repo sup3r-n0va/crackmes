@@ -1,0 +1,32 @@
+                         --------------------------
+                         EASY LINUX CRACKME BY LORD
+                         --------------------------
+
+ Cracker   : kRio (krio@abv.bg)
+ Tools     : strace v4.4 (you have it!)
+ Protection: group id (hehe! :])
+ Date      : 09/XX/2004
+
+ Is this some kind of joke or what?  This is supposed  to  be  a crackme not a
+kindergarden dummy program...  :(  Use STRACE  on  this crackme and you'll see
+that it gets the group id  of  the current user  executing it and then it gets
+compared to 0xDEAD.  If  it  matches you  get  the 'Okej!' message.  There are
+thousand of ways to make  that check valid and the first that comes to my mind
+is:
+
+ step 1: login as root (I can't do this on my slackware remote shell...)
+ step 2: "user@slackware.shell% groupadd -g 57005 -o linux_crackmes"
+ step 3: add an user (example: cracker_31337) to that group
+ step 4: "user@slackware.shell% strace -u cracker_31337 blah"
+
+ You'll get the "Okej!" message....  :)  Only the priviliged super-duper users
+of that 57007 group will have the rights to run this kick-ass crackme...
+
+ PS: of course, you can always patch it... :)
+
+                                   ------
+                                   GREETS
+                                   ------
+
+ lord        -- your website has only a logo on it... :(
+ crackmes.de -- linux crackmes getting more and more and more and more... :)

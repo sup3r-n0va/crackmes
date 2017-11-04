@@ -1,0 +1,39 @@
+-----------------------------------------------------------------
+Setup
+-----------------------------------------------------------------
+PITA to setup, but not so bad once you get it running. Start by downloading the vm pointed to by the author (Make sure you have
+VMWare player/workstation installed.
+
+Launch the host vm, then launch the qemu-system image inside the vm by doing the following
+
+cd Downloads/vm_img
+
+qemu-system-arm -M vexpress-a9 -cpu cortex-a9 -kernel ./vmlinuz -initrd ./initrd.img -redir tcp:2200::22 -m 512 -append "root=/dev/mmcblk0p2 vga=normal mem=512M devtmpfs.mount=0 rw" -drive file=vexpress.img,if=sd,cache=writeback
+
+Copy the binary to the image using SCP
+
+scp -P 2200 arm_crack1 root@localhost:/root
+
+-----------------------------------------------------------------
+Disassembly
+-----------------------------------------------------------------
+
+Start is exported @0x8591, which correctly disassembles as Thumb. Main is loaded from @0x88D4; introduces user to the program, mallocs some buffers of size 0xC, then calls some function @0x8688 to perform a debugging check. If we're debugging, this exits the program...
+
+After being annoying, main reads stdin to one of the buffers, then memcpys a string ("`TU_KU_KRXMS") into another. The goal of the program seems to be passing a valid string that matches whatever checks are performed between the input string, and this fixed string.
+
+First check is after a custom strlen function at @0x8738, which returns the number of non-null characters. Program exits if the string is not 0xC characters in length (size of the buffer...)
+
+second check is made by function @0x86A8. This function needs to NOT RETURN 1, so we can get past the first trap (Program runs "yes FAIL"). 
+Disassembly of func_86A8 yields that this is some custom strcmp function, which returns 1 if the two strings are the same length, or if it reaches the 10th (0xA) iteration of the loop.
+
+After passing this check, each byte of the "`TU_KU_KRXMS" string is passed through a function at @0x877C, which increments the byte by 0xC, which should produce the following bytes
+
+"`TU_KU_KRXMS" - \x60\x54\x55\x5f\x4b\x55\x5f\x4b\x52\x58\x4d\x53
+"this_is_flag" - \x74\x68\x69\x73\x5f\x69\x73\x5f\x66\x6c\x61\x67
+
+-----------------------------------------------------------------
+Solution
+-----------------------------------------------------------------
+
+Calling the program and passing "this_is_flag" as input reaches the solution point in the code.

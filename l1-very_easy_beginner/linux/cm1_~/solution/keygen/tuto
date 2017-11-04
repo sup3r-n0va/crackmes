@@ -1,0 +1,79 @@
+This one is not hard once you have got the idea of what it does. The
+assembly code will get you a switch structure. I will describe how to
+read it.
+
+====
+ 8048565:	8a 55 ef             	mov    -0x11(%ebp),%dl
+ 8048568:	89 d0                	mov    %edx,%eax
+ 804856a:	88 95 df ef ff ff    	mov    %dl,-0x1021(%ebp)
+ 8048570:	83 e8 2a             	sub    $0x2a,%eax
+ 8048573:	3c 05                	cmp    $0x5,%al
+ 8048575:	0f 87 02 01 00 00    	ja     804867d <main+0x1a9>
+ 804857b:	0f b6 c0             	movzbl %al,%eax
+ 804857e:	ff 24 85 a4 87 04 08 	jmp    *0x80487a4(,%eax,4)
+====
+
+There are two jumps:
+  * the first is conditionnal, it is meant to check that the value is in
+    the catch range (in this case '*' to '/');
+  * the second is inconditionnal but depends on some value.
+
+We will focus on the later (the former being trivial). In the .rodata section lies a table of instruction pointers. The index (%eax) is between 0 and 6 ; so the array is 24 bytes long.
+
+> $ hexdump -C -s 0x7a4 cm1 -n 24
+> 000007a4  8f 85 04 08 85 85 04 08  bc 85 04 08 9b 85 04 08  |................|
+> 000007b4  7d 86 04 08 a5 85 04 08                           |}.......|
+> 000007bc
+
+Integers being little endian, we can convert it to pointers. Now, we
+have the actual jump for each value:
+  * 0: 804858f
+  * 1: 8048585
+  * 2: 80485bc
+  * 3: 804859b
+  * 4: 804867d
+  * 5: 80485a5
+
+After decoding the switch, we have something like:
+
+====
+if (read(file, &c, 1) != 1)
+	return 2;
+switch (c)
+{
+case '+':
+	ESI++;
+	break;
+case '*':
+	ESI+=5;
+	break;
+case '-':
+	ESI--;
+	break;
+case '/':
+	ESI-=5;
+	break;
+case ',':
+	// somewhat longer part
+default:
+	return 2;
+}
+====
+
+And the first four cases have a test to check if it is different from
+the previous value.
+
+Looking at the fifth case, we figure out what it does:
+  * reads one more character;
+  * check it against ESI;
+  * check it against the current character in the user name;
+  * when it is the last character, checks that there is nothing more to read;
+  * divide ESI by 10.
+
+Knowing that, making a key generator is simple:
+  * fetch the user name;
+  * for each character, generate a chain that will set the ESI to the right value;
+  * remember not to put anything after the last character (e.g. no '\n').
+
+You have access to the assembly code along with my comments in 'asm' and
+an implementation of a key generator for this program in 'keygen.c'.

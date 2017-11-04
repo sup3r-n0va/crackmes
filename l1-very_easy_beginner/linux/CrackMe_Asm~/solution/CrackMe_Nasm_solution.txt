@@ -1,0 +1,17 @@
+Crackme_Nasm solution by josamont:
+
+
+The key lines in assembly are:
+ 80480a0:		mov    ecx,0x80491a8
+ 80480a5: 	mov    edx,0xb					; it writes in memory the input entered ( <=11 characters)
+
+80480ac:	mov    eax,0x80491b3
+to
+80480ed:	mov    BYTE PTR [eax],0x21 ; it writes the correct password = S3CrE+Fl4G!
+
+ 80480f4:	mov    ecx,DWORD PTR ds:0x80491b3 (4 first bytes input password)
+ 80480fa:	mov    ebx,DWORD PTR ds:0x80491a8 (4 first bytes correct password)
+ 8048100:	cmp    ecx,ebx								; it only compares the 4 first characters
+
+The password is = S3Cr
+

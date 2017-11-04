@@ -1,0 +1,182 @@
+tvk6843's Keygen #1 - mrmacete solution
+=======================================
+
+
+1. IDENTIFICATION OF EXECUTABLE
+-------------------------------
+
+$ shasum ./tvk_crackme_2 
+
+826b2a6c42c9b68adfe49e90191a881b4503ce0b
+
+The executable is a regular ELF, with shared libraries.
+
+
+2. OVERVIEW
+-----------
+
+The underlying logic is pretty similar to the first keygen from the same author (cfr. my solution to "tvk6843's Keygen"). It seems most of the code has been reused, so did I with the solution code.
+
+
+3. main()
+---------
+
+As stated by the author itself, the number of command line arguments is not checked for consistency, so if less arguments than expected are provided it will crash.
+
+As in the first keygen, the number of expected arguments is 2. Here is a logical sketch of the main function:
+
+	1. from argv[1], four numbers are generated using four slightly different algorithms (all variations of the one used in the first keygen by the author)
+	2. argv[2] is converted, 8 chars at a time, in 4 numbers (so the length of argv[2] must be 32 chars)
+	3. the numbers parsed from argv[2] are checked for equality to the ones derived by argv[1]
+
+
+4. argv[1] to numbers
+---------------------
+
+All the four algorithms are implementations of the following steps:
+
+	1. initialize the number to something
+	2. iterate each char of argv[1], accumulate the result using the char and the value of the counter, combined somehow
+	3. add some dependency to localtime's hour and minute
+	4. add some optional bitwise mangling to the result
+
+All four functions are translated into python in my solution.py along with comments. Here is the first one, as an example, directly ripped from the binary and commented:
+
+; function "argv[1] to number A"
+/ (fcn) fcn.080487fa 123
+|          0x080487fa    55           push ebp
+|          0x080487fb    89e5         mov ebp, esp
+|          0x080487fd    83ec28       sub esp, 0x28
+|          0x08048800    8d45e8       lea eax, [ebp-0x18]
+
+; store localtime struct in a local variable at [ebp-0x14]
+
+|          0x08048803    890424       mov [esp], eax
+|          0x08048806    e825fdffff   call sym.imp.time
+|          0x0804880b    8d45e8       lea eax, [ebp-0x18]
+|          0x0804880e    890424       mov [esp], eax
+|          0x08048811    e8eafcffff   call sym.imp.localtime
+|          0x08048816    8945ec       mov [ebp-0x14], eax
+
+
+; iterate all chars
+
+|          0x08048819    c745f400000. mov dword [ebp-0xc], 0x0  ; <-- result value inited to 0
+|          0x08048820    c745f000000. mov dword [ebp-0x10], 0x0 ; <-- counter starts from 0
+|      ,=< 0x08048827    eb19         jmp 0x8048842 
+
+
+; read current char in eax
+
+|     .--> 0x08048829    8b45f0       mov eax, [ebp-0x10]
+|     ||   0x0804882c    8b5508       mov edx, [ebp+0x8]
+|     ||   0x0804882f    01d0         add eax, edx
+|     ||   0x08048831    0fb600       movzx eax, byte [eax]
+|     ||   0x08048834    0fbec0       movsx eax, al
+
+
+; multiply the char code by the counter itself
+
+|     ||   0x08048837    0faf45f0     imul eax, [ebp-0x10]
+
+; add this to total result value
+
+|     ||   0x0804883b    0145f4       add [ebp-0xc], eax
+
+
+; increment counter
+
+|     ||   0x0804883e    8345f001     add dword [ebp-0x10], 0x1
+
+
+; call strlen() to bound check the input string
+
+|     |`-> 0x08048842    8b4508       mov eax, [ebp+0x8]
+|     |    0x08048845    890424       mov [esp], eax
+|     |    0x08048848    e8d3fcffff   call sym.imp.strlen
+|     |    0x0804884d    3b45f0       cmp eax, [ebp-0x10]
+|     |    0x08048850    0f97c0       seta al
+|     |    0x08048853    84c0         test al, al
+|     `==< 0x08048855    75d2         jne 0x8048829
+
+; string is finished, let's add some deps to localtime
+
+|          0x08048857    8b45ec       mov eax, [ebp-0x14]
+|          0x0804885a    8b5004       mov edx, [eax+0x4]
+|          0x0804885d    8b45ec       mov eax, [ebp-0x14]
+|          0x08048860    8b4008       mov eax, [eax+0x8]
+
+; sum up hours and minutes values 
+
+|          0x08048863    01d0         add eax, edx
+|          0x08048865    8b55f4       mov edx, [ebp-0xc]
+
+; multiply that by current result value
+
+|          0x08048868    0fafc2       imul eax, edx
+|          0x0804886b    8945f4       mov [ebp-0xc], eax
+|          0x0804886e    8b45f4       mov eax, [ebp-0xc]
+
+; flip each bit of the result and return it
+
+|          0x08048871    f7d0         not eax
+|          0x08048873    c9           leave
+\          0x08048874    c3           ret
+
+
+5. argv[2] to numbers
+---------------------
+
+Here is, from the main() function, the snippet which reads 8 chars at a time, 4 times from argv[2] and calls a function to parse them to an integer:
+
+; save a pointer to argv[2] in [esp+0x3c]
+
+|           0x08048939    8b450c       mov eax, [ebp+0xc]
+|           0x0804893c    8b4008       mov eax, [eax+0x8]
+|           0x0804893f    8944243c     mov [esp+0x3c], eax
+
+
+; start of loop
+
+|           0x08048943    c7442438000. mov dword [esp+0x38], 0x0
+|       ,=< 0x0804894b    eb1e         jmp 0x804896b
+
+
+; call the function fcn.08048875, passing argv[2]
+
+|      .--> 0x0804894d    8b44243c     mov eax, [esp+0x3c]
+|      ||   0x08048951    890424       mov [esp], eax
+|      ||   0x08048954    e81cffffff   call fcn.08048875
+
+
+; put the resulting integer in a local array
+
+|      ||   0x08048959    8b542438     mov edx, [esp+0x38]
+|      ||   0x0804895d    89449410     mov [esp+edx*4+0x10], eax
+
+
+; jump 8 chars
+
+|      ||   0x08048961    8344243c08   add dword [esp+0x3c], 0x8
+|      ||   0x08048966    8344243801   add dword [esp+0x38], 0x1
+
+
+; repeat 4 times
+
+|      |`-> 0x0804896b    837c243803   cmp dword [esp+0x38], 0x3
+|      |    0x08048970    0f96c0       setbe al
+|      |    0x08048973    84c0         test al, al
+|      `==< 0x08048975    75d6         jne 0x804894d
+
+The parsing function fcn.08048875, parses an hexadecimal string into an integer number (not shown for brevity). As an obfuscation means, the author decided to use a permutation table to map hex digits to a random choice of alphanumerics. Namely, the hex digits from 0 to F are mapped to the following array of 16 elements, in order: ['q','w','E','1','t','y','m','5','B','v','C','X','7','0','f','G']
+
+6. the solution
+---------------
+
+The solution takes an username as input for argv[1], then generates the 4 numbers and joins them in the correct order to form the key, to be provided as argv[2], properly encoded using the hex permutation table. Please find it attached as solution.py
+
+Please note that since the crackme is "localtime" dependent, the keygen must be executed on the same machine of the executable, and within the same minute - so if it doesn't work just run it again, you must have choosen the ninja moment in which the minute changes between solution and crackme runs :)
+
+
+
+

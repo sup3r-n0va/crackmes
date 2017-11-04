@@ -1,0 +1,80 @@
+rezk2ll's Crackme_Nasm
+http://crackmes.de/users/rezk2ll/crackme_nasm/
+
+simple crackme coded in assembly ( NASM ) :p for newbies
+
+Difficulty: 1 - Very easy, for newbies
+Platform: Unix/linux etc.
+Language: Assembler
+
+#####################################################################
+
+I don't have Linux installed but I guess we can solve this on Windows too :D
+
+So we load ELF binary to IDA and we can easily see that it has a simple code.
+
+The code reads our input and stores it in the variable named "var" and at .text:080480AC
+address eax holds the offset to variable "flag" and some hex bytes are written to that
+variable one by one.
+
+At the end of the code "var" and "flag" variables are compared and if the check fails
+you'll land to bad boy message.
+
+So the password is obviously the hex bytes that are being written to "flag"
+
+
+.text:08048080 ; =============== S U B R O U T I N E =======================================
+.text:08048080
+.text:08048080 ; Attributes: noreturn
+.text:08048080
+.text:08048080                 public _start
+.text:08048080 _start          proc near               ; CODE XREF: _start+ADj
+.text:08048080                 mov     eax, 4
+.text:08048085                 mov     ebx, 1          ; fd
+.text:0804808A                 mov     ecx, offset prom ; addr
+.text:0804808F                 mov     edx, 7          ; len
+.text:08048094                 int     80h             ; LINUX - sys_write
+.text:08048096                 mov     eax, 3
+.text:0804809B                 mov     ebx, 0          ; fd
+.text:080480A0                 mov     ecx, offset var ; addr
+.text:080480A5                 mov     edx, 0Bh        ; len
+.text:080480AA                 int     80h             ; LINUX - sys_read
+.text:080480AC                 mov     eax, offset flag
+.text:080480B1                 mov     byte ptr [eax], 53h
+.text:080480B4                 add     eax, 1
+.text:080480B7                 mov     byte ptr [eax], 33h
+.text:080480BA                 add     eax, 1
+.text:080480BD                 mov     byte ptr [eax], 43h
+.text:080480C0                 add     eax, 1
+.text:080480C3                 mov     byte ptr [eax], 72h
+.text:080480C6                 add     eax, 1
+.text:080480C9                 mov     byte ptr [eax], 45h
+.text:080480CC                 add     eax, 1
+.text:080480CF                 mov     byte ptr [eax], 2Bh
+.text:080480D2                 add     eax, 1
+.text:080480D5                 mov     byte ptr [eax], 46h
+.text:080480D8                 add     eax, 1
+.text:080480DB                 mov     byte ptr [eax], 6Ch
+.text:080480DE                 add     eax, 1
+.text:080480E1                 mov     byte ptr [eax], 34h
+.text:080480E4                 add     eax, 1
+.text:080480E7                 mov     byte ptr [eax], 47h
+.text:080480EA                 add     eax, 1
+.text:080480ED                 mov     byte ptr [eax], 21h
+.text:080480F0                 xor     ebx, ebx
+.text:080480F2                 xor     ecx, ecx
+.text:080480F4                 mov     ecx, ds:flag
+.text:080480FA                 mov     ebx, ds:var
+.text:08048100                 cmp     ecx, ebx
+.text:08048102                 jnz     short failure
+.text:08048104                 jmp     short success
+.text:08048104 ; ---------------------------------------------------------------------------
+
+
+When we convert them to ASCII printable characters the password is: S3CrE+Fl4G!
+
+Thanks for reading!
+
+
+draww @ crackmes.de
+22.01.2015 / 11:44

@@ -1,0 +1,61 @@
+
+
+
+Solution:
+
+	Crackme blah is for OS Linux.Its a simple crackme.When run it does nothing.
+	To find out whats happening lets dissassemble in IDA.
+	On disassembly we have the following codes in entirety.
+
+
+.text:08048094                 public start
+.text:08048094 start           proc near
+.text:08048094                 xor     eax, eax
+.text:08048096                 mov     eax, 2Fh
+.text:0804809B                 int     80h             ; LINUX - sys_getgid //system call to get 							 groupid of the exe file blah
+.text:0804809D                 cmp     eax, 0DEADh       check if the groupid is 0DEAD in hex
+.text:080480A2                 jnz     short loc_80480BA //if not run to exit
+.text:080480A4                 mov     eax, 4
+.text:080480A9                 mov     ebx, 1
+.text:080480AE                 mov     ecx, offset unk_80490C4  //string okej
+.text:080480B3                 mov     edx, 6
+.text:080480B8                 int     80h             ; LINUX - sys_write//if it is system call 							 to write okej in console/terminal
+.text:080480BA 
+.text:080480BA loc_80480BA:                            ; CODE XREF: start+Ej
+.text:080480BA                 xor     eax, eax
+.text:080480BC                 inc     eax
+.text:080480BD                 xor     ebx, ebx
+.text:080480BF                 int     80h             ; LINUX - sys_exit
+.text:080480BF start           endp
+.text:080480BF 
+.text:080480BF _text           ends
+
+
+.text:080480BF 
+.data:080490C4 ; ---------------------------------------------------------------------------
+.data:080490C4 
+.data:080490C4 ; Segment type: Pure data
+.data:080490C4 ; Segment permissions: Read/Write
+.data:080490C4 _data           segment dword public 'DATA' use32
+.data:080490C4                 assume cs:_data
+.data:080490C4                 ;org 80490C4h
+.data:080490C4 unk_80490C4     db  4Fh ; O             ; DATA XREF: start+1Ao
+.data:080490C5                 db  6Bh ; k
+.data:080490C6                 db  65h ; e
+.data:080490C7                 db  6Ah ; j
+.data:080490C8                 db  21h ; !
+.data:080490C9                 db  0Ah ;  
+.data:080490C9 _data           ends
+.data:080490C9 
+.data:080490C9 
+.data:080490C9                 end start
+
+
+Thats all . When the exe is run it checks whether groupid of the file is 0DEAD if not it will exit and if yes it will display ""okej".
+
+Instead of bothering to create/change groupid simply reverse the check result at 8048A2 from jnz (7516)to jz(7416) and it would display the desired string okej
+
+
+OorjaHalT
+India
+the 21st september 2004

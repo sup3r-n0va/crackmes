@@ -1,0 +1,132 @@
+synamics's Xrockmr crackme solution by syspher
+
+
+Protections:
+
+Kill gdb,strace and check if is traced using ptrace function.
+
+
+.text:08048584 _init_   proc near          ; CODE XREF: __libc_csu_init+4Bp
+.text:08048584                             ; DATA XREF: .init_array:__init_array_starto
+.text:08048584   push    ebp
+.text:08048585   mov     ebp, esp
+.text:08048587   sub     esp, 18h
+.text:0804858A   mov     dword ptr [esp], offset command ; "killall -q gdb"
+.text:08048591   call    _system
+.text:08048596   mov     dword ptr [esp], offset aKillallQStrace ; "killall -q strace"
+.text:0804859D   call    _system
+.text:080485A2   mov     dword ptr [esp+0Ch], 0
+.text:080485AA   mov     dword ptr [esp+8], 0
+.text:080485B2   mov     dword ptr [esp+4], 0
+.text:080485BA   mov     dword ptr [esp], 0 ; request
+.text:080485C1   call    _ptrace
+.text:080485C6   test    eax, eax
+.text:080485C8   jns     short loc_80485D6 ------>
+
+.text:080485CA   mov     dword ptr [esp],offset aSemCheatFedepe;"\t\tSem cheat, fedepe..."
+.text:080485D1   call    _puts           
+
+-------------->
+.text:080485D6 loc_80485D6:                    ; CODE XREF: _init_+44j
+.text:080485D6    mov     dword ptr [esp], 40h ; size
+.text:080485DD    call    _malloc
+.text:080485E2    mov     ds:par, eax
+.text:080485E7    mov     eax, ds:par
+.text:080485EC    mov     byte ptr [eax], 61h
+.text:080485EF    mov     eax, ds:par
+.text:080485F4    add     eax, 1
+.text:080485F7    mov     byte ptr [eax], 6Ch
+.text:080485FA    mov     eax, ds:par
+.text:080485FF    add     eax, 2
+.text:08048602    mov     byte ptr [eax], 65h
+.text:08048605    mov     eax, ds:par
+.text:0804860A    add     eax, 3
+.text:0804860D    mov     byte ptr [eax], 65h
+.text:08048610    mov     eax, ds:par
+.text:08048615    add     eax, 4
+.text:08048618    mov     byte ptr [eax], 66h
+.text:0804861B    leave
+.text:0804861C    retn
+
+
+
+and others stupid operations in the code...
+
+
+
+Well, the solution..,
+
+
+
+.text:08048544 _finit_    proc near      ; DATA XREF: .fini_array:__init_array_endo
+.text:08048544    push    ebp
+.text:08048545    mov     ebp, esp
+.text:08048547    sub     esp, 18h
+.text:0804854A    movzx   eax, byte ptr ds:password
+.text:08048551    cmp     al, 68h
+.text:08048553    jnz     short locret_8048582
+.text:08048555    movzx   eax, byte ptr ds:password+1
+.text:0804855C    cmp     al, 65h
+.text:0804855E    jnz     short locret_8048582
+.text:08048560    movzx   eax, byte ptr ds:password+2
+.text:08048567    cmp     al, 6Ch
+.text:08048569    jnz     short locret_8048582
+.text:0804856B    movzx   eax, byte ptr ds:password+3
+.text:08048572    cmp     al, 6Ch
+.text:08048574    jnz     short locret_8048582
+.text:08048576    mov     dword ptr [esp], offset s ; "You WIN, congratulations..."
+.text:0804857D    call    _puts
+.text:08048582
+.text:08048582 locret_8048582:                         ; CODE XREF: _finit_+Fj
+.text:08048582                           ; _finit_+1Aj ...
+.text:08048582    leave
+.text:08048583    retn
+.text:08048583 _finit_         endp
+
+
+
+ ----------------->    68 65 6C 6C = hell
+
+
+
+.text:0804879C   mov     dword ptr[esp],offset aWhatIsThePassw;"What is the password?"
+.text:080487A3   call    _puts
+.text:080487A8   mov     eax, ds:stdin@@GLIBC_2_0
+.text:080487AD   mov     [esp+8], eax    ; stream
+.text:080487B1   mov     dword ptr [esp+4], 8 ; n
+.text:080487B9   mov     dword ptr [esp], offset password ; s
+.text:080487C0   call    _fgets
+.text:080487C5   movzx   eax, byte ptr ds:password+4
+.text:080487CC   cmp     al, 6Fh  ; --------------------------------  6Fh = o  <----- ;)
+.text:080487CE   jz      short loc_80487D7
+.text:080487D0   mov     byte ptr ds:password+1, 61h ; -------------  61h = a
+.text:080487D7
+.text:080487D7 loc_80487D7:              ; CODE XREF: main+1B1j
+.text:080487D7   mov     eax, 0
+.text:080487DC   leave
+.text:080487DD   retn
+.text:080487DD main            endp
+
+
+
+ ----------------->    68 65 6C 6C 6F = hello 
+
+
+
+syspher@Host:~$ ./crackme_x86
+What is the password?
+hello
+You WIN, congratulations...
+syspher@Host:~$
+
+
+Regards !,
+syspher
+
+
+
+                                                                                                 
+                 
+
+
+                                                                                                                            

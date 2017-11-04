@@ -1,0 +1,211 @@
+080484d4 <main>:
+ 80484d4:	8d 4c 24 04          	lea    0x4(%esp),%ecx
+ 80484d8:	83 e4 f0             	and    $0xfffffff0,%esp
+ 80484db:	ff 71 fc             	pushl  -0x4(%ecx)
+ 80484de:	55                   	push   %ebp
+ 80484df:	89 e5                	mov    %esp,%ebp
+ 80484e1:	57                   	push   %edi
+ 80484e2:	56                   	push   %esi
+ 80484e3:	53                   	push   %ebx
+ 80484e4:	51                   	push   %ecx
+ 80484e5:	81 ec 28 10 00 00    	sub    $0x1028,%esp
+
+x1028 = getpwuid(getuid());
+ 80484eb:	e8 f0 fe ff ff       	call   80483e0 <getuid@plt>
+ 80484f0:	83 ec 0c             	sub    $0xc,%esp
+ 80484f3:	50                   	push   %eax
+ 80484f4:	e8 a7 fe ff ff       	call   80483a0 <getpwuid@plt>
+ 80484f9:	89 85 d8 ef ff ff    	mov    %eax,-0x1028(%ebp)
+
+ 80484ff:	5e                   	pop    %esi
+ 8048500:	5f                   	pop    %edi
+ 8048501:	ff 30                	pushl  (%eax)
+ 8048503:	31 f6                	xor    %esi,%esi
+ 8048505:	68 50 87 04 08       	push   $0x8048750
+ 804850a:	e8 c1 fe ff ff       	call   80483d0 <printf@plt>
+ 804850f:	8b 85 d8 ef ff ff    	mov    -0x1028(%ebp),%eax
+ 8048515:	5b                   	pop    %ebx
+ 8048516:	8d 9d ee ef ff ff    	lea    -0x1012(%ebp),%ebx
+ 804851c:	ff 30                	pushl  (%eax)
+ 804851e:	ff 70 14             	pushl  0x14(%eax)
+ 8048521:	68 7f 87 04 08       	push   $0x804877f
+ 8048526:	68 01 10 00 00       	push   $0x1001
+ 804852b:	53                   	push   %ebx
+ 804852c:	e8 bf fe ff ff       	call   80483f0 <snprintf@plt>
+ 8048531:	83 c4 18             	add    $0x18,%esp
+ 8048534:	6a 00                	push   $0x0
+ 8048536:	53                   	push   %ebx
+ 8048537:	e8 c4 fe ff ff       	call   8048400 <open@plt>
+ 804853c:	83 c4 10             	add    $0x10,%esp
+ 804853f:	83 f8 ff             	cmp    $0xffffffff,%eax
+
+ 8048542:	89 c7                	mov    %eax,%edi
+ 8048544:	ba 01 00 00 00       	mov    $0x1,%edx
+
+0x102d = ' ';
+ 8048549:	c6 85 d3 ef ff ff 20 	movb   $0x20,-0x102d(%ebp)
+
+x102c = 0;
+ 8048550:	c7 85 d4 ef ff ff 00 	movl   $0x0,-0x102c(%ebp)
+ 8048557:	00 00 00 
+
+ 804855a:	0f 85 dc 00 00 00    	jne    804863c <main+0x168>
+
+while
+ 8048560:	e9 1d 01 00 00       	jmp    8048682 <main+0x1ae>
+x11 = c
+
+c - '*' <= 5
+{
+ 8048565:	8a 55 ef             	mov    -0x11(%ebp),%dl
+ 8048568:	89 d0                	mov    %edx,%eax
+ 804856a:	88 95 df ef ff ff    	mov    %dl,-0x1021(%ebp)
+ 8048570:	83 e8 2a             	sub    $0x2a,%eax
+ 8048573:	3c 05                	cmp    $0x5,%al
+ 8048575:	0f 87 02 01 00 00    	ja     804867d <main+0x1a9>
+ 804857b:	0f b6 c0             	movzbl %al,%eax
+
+switch (c - '*')
+0: 804858f
+1: 8048585
+2: 80485bc
+3: 804859b
+4: 804867d
+5: 80485a5
+ 804857e:	ff 24 85 a4 87 04 08 	jmp    *0x80487a4(,%eax,4)
+{
+case 1: // +
+esi++;
+ 8048585:	46                   	inc    %esi
+ 8048586:	80 bd d3 ef ff ff 2b 	cmpb   $0x2b,-0x102d(%ebp)
+ 804858d:	eb 20                	jmp    80485af <main+0xdb>
+
+case 0: // *
+esi+=5;
+ 804858f:	83 c6 05             	add    $0x5,%esi
+
+ 8048592:	80 bd d3 ef ff ff 2a 	cmpb   $0x2a,-0x102d(%ebp)
+ 8048599:	eb 14                	jmp    80485af <main+0xdb>
+
+case 3: // -
+esi--;
+ 804859b:	4e                   	dec    %esi
+ 804859c:	80 bd d3 ef ff ff 2d 	cmpb   $0x2d,-0x102d(%ebp)
+ 80485a3:	eb 0a                	jmp    80485af <main+0xdb>
+
+case 4: // /
+esi-=5;
+ 80485a5:	83 ee 05             	sub    $0x5,%esi
+ 80485a8:	80 bd d3 ef ff ff 2f 	cmpb   $0x2f,-0x102d(%ebp)
+
+ 80485af:	75 7a                	jne    804862b <main+0x157>
+
+ 80485b1:	43                   	inc    %ebx
+ 80485b2:	83 fb 05             	cmp    $0x5,%ebx
+ 80485b5:	76 79                	jbe    8048630 <main+0x15c>
+ 80485b7:	e9 c1 00 00 00       	jmp    804867d <main+0x1a9>
+
+case 2: // ,
+if (read(___, &x11, 1) != 1)
+return;
+ 80485bc:	51                   	push   %ecx
+ 80485bd:	8d 4d ef             	lea    -0x11(%ebp),%ecx
+ 80485c0:	6a 01                	push   $0x1
+ 80485c2:	51                   	push   %ecx
+ 80485c3:	57                   	push   %edi
+ 80485c4:	e8 47 fe ff ff       	call   8048410 <read@plt>
+ 80485c9:	83 c4 10             	add    $0x10,%esp
+ 80485cc:	48                   	dec    %eax
+ 80485cd:	0f 85 aa 00 00 00    	jne    804867d <main+0x1a9>
+
+if (x11 != esi)
+return;
+ 80485d3:	0f b6 45 ef          	movzbl -0x11(%ebp),%eax
+ 80485d7:	39 f0                	cmp    %esi,%eax
+ 80485d9:	0f 85 9e 00 00 00    	jne    804867d <main+0x1a9>
+
+if (*(*x1028+x102c) != esi) // esi != name[0]
+return;
+ 80485df:	8b 85 d8 ef ff ff    	mov    -0x1028(%ebp),%eax
+ 80485e5:	8b 8d d4 ef ff ff    	mov    -0x102c(%ebp),%ecx
+ 80485eb:	8b 10                	mov    (%eax),%edx
+ 80485ed:	0f be 04 0a          	movsbl (%edx,%ecx,1),%eax
+ 80485f1:	39 c6                	cmp    %eax,%esi
+ 80485f3:	0f 85 84 00 00 00    	jne    804867d <main+0x1a9>
+
+x102c = ecx;
+ 80485f9:	41                   	inc    %ecx
+ 80485fa:	89 8d d4 ef ff ff    	mov    %ecx,-0x102c(%ebp)
+
+ 8048600:	80 3c 0a 00          	cmpb   $0x0,(%edx,%ecx,1)
+ 8048604:	75 14                	jne    804861a <main+0x146>
+
+if (read(___, &x11, 1) != 0)
+return;
+ 8048606:	52                   	push   %edx
+ 8048607:	8d 45 ef             	lea    -0x11(%ebp),%eax
+ 804860a:	6a 01                	push   $0x1
+ 804860c:	50                   	push   %eax
+ 804860d:	57                   	push   %edi
+ 804860e:	e8 fd fd ff ff       	call   8048410 <read@plt>
+ 8048613:	83 c4 10             	add    $0x10,%esp
+ 8048616:	85 c0                	test   %eax,%eax
+ 8048618:	75 63                	jne    804867d <main+0x1a9>
+}
+
+esi /= 10;
+ 804861a:	ba 0a 00 00 00       	mov    $0xa,%edx
+ 804861f:	89 f0                	mov    %esi,%eax
+ 8048621:	89 d1                	mov    %edx,%ecx
+ 8048623:	31 d2                	xor    %edx,%edx
+ 8048625:	f7 f1                	div    %ecx
+ 8048627:	89 c6                	mov    %eax,%esi
+
+ 8048629:	eb 05                	jmp    8048630 <main+0x15c>
+
+ebx = 1;
+ 804862b:	bb 01 00 00 00       	mov    $0x1,%ebx
+
+x102d = x1021;
+ 8048630:	8a 85 df ef ff ff    	mov    -0x1021(%ebp),%al
+ 8048636:	88 85 d3 ef ff ff    	mov    %al,-0x102d(%ebp)
+
+read(___, &x11, 1);
+ 804863c:	50                   	push   %eax
+ 804863d:	8d 45 ef             	lea    -0x11(%ebp),%eax
+ 8048640:	6a 01                	push   $0x1
+ 8048642:	50                   	push   %eax
+ 8048643:	57                   	push   %edi
+ 8048644:	e8 c7 fd ff ff       	call   8048410 <read@plt>
+ 8048649:	83 c4 10             	add    $0x10,%esp
+ 804864c:	48                   	dec    %eax
+ 804864d:	0f 84 12 ff ff ff    	je     8048565 <main+0x91>
+}
+while (read() == 1);
+
+*(*x1028+x102c) == 0;
+ 8048653:	8b 95 d8 ef ff ff    	mov    -0x1028(%ebp),%edx
+ 8048659:	8b 8d d4 ef ff ff    	mov    -0x102c(%ebp),%ecx
+ 804865f:	8b 02                	mov    (%edx),%eax
+ 8048661:	31 d2                	xor    %edx,%edx
+ 8048663:	80 3c 08 00          	cmpb   $0x0,(%eax,%ecx,1)
+ 8048667:	75 19                	jne    8048682 <main+0x1ae>
+
+ 8048669:	83 ec 0c             	sub    $0xc,%esp
+ 804866c:	68 8a 87 04 08       	push   $0x804878a
+ 8048671:	e8 3a fd ff ff       	call   80483b0 <puts@plt>
+ 8048676:	31 d2                	xor    %edx,%edx
+ 8048678:	83 c4 10             	add    $0x10,%esp
+
+ 804867b:	eb 05                	jmp    8048682 <main+0x1ae>
+
+ 804867d:	ba 02 00 00 00       	mov    $0x2,%edx
+ 8048682:	8d 65 f0             	lea    -0x10(%ebp),%esp
+ 8048685:	89 d0                	mov    %edx,%eax
+ 8048687:	59                   	pop    %ecx
+ 8048688:	5b                   	pop    %ebx
+ 8048689:	5e                   	pop    %esi
+ 804868a:	5f                   	pop    %edi
+ 804868b:	c9                   	leave  
+ 804868c:	8d 61 fc             	lea    -0x4(%ecx),%esp
+ 804868f:	c3                   	ret    

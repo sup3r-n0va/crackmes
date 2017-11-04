@@ -1,0 +1,282 @@
+WARNINGS
+======== 
+  1. i'm new both to ARM and Radare2, so forgive me if i'm a bit "slow" in this solution.
+
+  2. this solution is "theoretical", i.e. i didn't run the code because of lack of time to search for proper emulators
+
+
+Chapter 1 - Figuring out
+========================
+
+For this solution i decided to use Radare2 toolchain for everything, so first of all let's try to display all possible info about the binary using rabin2:
+
+  # rabin2 -g arm_crack1
+
+    (only useful lines follow:)
+    ...
+
+    [Entrypoints]
+    addr=0x00008591 off=0x00000591 baddr=0x00000000
+
+    ...
+
+    [Imports]
+    ...
+    ordinal=002 plt=0x00000518 bind=GLOBAL type=FUNC name=ptrace
+    ...
+    ordinal=004 plt=0x00000548 bind=GLOBAL type=FUNC name=alarm
+    ...
+    ordinal=008 plt=0x000004fc bind=GLOBAL type=FUNC name=signal
+    ...
+
+    ( here are the strings: ) 
+    addr=0x00000a70 off=0x00000a70 ordinal=000 sz=13 len=13 section=.rodata type=A string=`TU_KU_KRXMS
+    addr=0x00000a80 off=0x00000a80 ordinal=001 sz=17 len=17 section=.rodata type=A string=STALE CONNECTION
+    addr=0x00000a94 off=0x00000a94 ordinal=002 sz=17 len=17 section=.rodata type=A string=DEBUGGING... Bye
+    addr=0x00000aa8 off=0x00000aa8 ordinal=003 sz=65 len=65 section=.rodata type=A string=WELCOME TO ARM CRACK ME LEVEL 1 or MAYBE IT WAS 2????? GOOD LUCK
+    addr=0x00000ae9 off=0x00000ae9 ordinal=004 sz=37 len=37 section=.rodata type=A string= NO PATCHING OR MODIFYING WHATSOEVER
+    addr=0x00000b10 off=0x00000b10 ordinal=005 sz=27 len=27 section=.rodata type=A string=YOU Sol... OOOPS YOU DIDNT
+    addr=0x00000b2c off=0x00000b2c ordinal=006 sz=9 len=9 section=.rodata type=A string=yes FAIL
+    addr=0x00000b38 off=0x00000b38 ordinal=007 sz=21 len=21 section=.rodata type=A string=WAY TO GO SOLVED IT!
+
+
+    [Linked libraries]
+    libc.so.6
+    ld-linux.so.3
+
+    ...
+
+Now we already know some facts about the executable:
+
+  1. is compiled for linux, dynamically linked ( so no way to run it on my android phone due to different dynamic linker )
+
+  2. it is a well formed ELF produced with gcc, and it comes from C language source
+
+  3. we have the entry point and all the strings in the clear, so no encryption/packing or other evils should be present
+
+So, with all this knowledge saved in a text file, it's time to run r2:
+
+  # r2 arm_crack1
+
+    -- I love gradients
+    [0x00008591]>
+
+Ok! it seems that we're already at the entry point, let's trigger all the analysis:
+
+    [0x00008591]> aa
+    [0x00008591]>
+
+And now switch to visual mode, with
+
+    [0x00008591]> V
+
+press 'p' until we see the disassembled code, or at least something similar...
+
+           0x00008591    f0000b4f     svcmi 0x000b00f0                               
+           0x00008595    f0000e5d     wstrbpl wr0, [lr, -240]                        
+           0x00008599    f8041b6a     bvs 0x006c9981 ;[1]                            
+           0x0000859d    464df804     ldrbteq r4, [r8], 3398                         
+           0x000085a1    2d4df804     ldrbteq r4, [r8], 3373                         
+           0x000085a5    0ddff814     ldrbtne sp, [r8], 3853                         
+           0x000085a9    c04df804     ldrbteq r4, [r8], 3520    
+           ...                     
+
+Wow! i thought ARM is strange, but not THAT strange!! Did i do something wrong? Sure i have: all the instructions are decoded as 32 bit, fixed size. Let's try to trigger thumb mode, restarting r2 in this way:
+
+  # r2 -b 16 arm_crack1
+    
+     -- Everything up-to-date.
+    [0x00008591]> V
+
+Pressing 'p' again...
+           0x00008591    f000         lsls r0, r6, 3                                 
+           0x00008593    0b4f         ldr r7, [pc, 44] ; (0x000085c0)                
+           0x00008595    f000         lsls r0, r6, 3                                 
+           0x00008597    0e5d         ldrb r6, [r1, r4]                              
+           0x00008599    f804         lsls r0, r7, 19                                
+           0x0000859b    1b6a         ldr r3, [r3, 32]                               
+           0x0000859d    464d         ldr r5, [pc, 280] ; (0x000086b8)               
+           0x0000859f    f804         lsls r0, r7, 19                                
+           0x000085a1    2d4d         ldr r5, [pc, 180] ; (0x00008658)               
+           0x000085a3    f804         lsls r0, r7, 19                                
+       ,=< 0x000085a5    0ddf         svc 13 ;[1]                                    
+       |   0x000085a7    f814         asrs r0, r7, 19                                
+       |   0x000085a9    c04d         ldr r5, [pc, 768] ; (0x000088ac)               
+       |   0x000085ab    f804         lsls r0, r7, 19                                
+       |   0x000085ad    cd04         lsls r5, r1, 19                                
+       |   0x000085af    4804         lsls r0, r1, 17
+      ...
+
+Ok, still not charming, but now it seems manageable! Above snippet is part of a standard libc entry point. 
+
+
+Chapter 2 - The main function
+=============================
+
+Now we can search for the "interesting" function, using our previous knowledge. For example we can search for usages of the string "WAY TO GO SOLVED IT!", which we know to be stored address 0xb38. We can assume that there is some instruction with a direct reference to that address, so the simplest way i found is to search for the bare address through assembly instructions using '/c' command (type '/?' for an help on searching in r2):
+
+    [0x000088c6]> /c b38
+    f hit_0 @ 0x00008a0a   # 4: movw r0, 35640 ; 0x8b38
+
+Here it is! what a luck! so let's seek to address 0x00008a0a:
+
+    [0x000088c6]> s 0x8a0a
+    [0x00008a0a]> V
+
+In visual mode again, what we see is:
+
+          ...
+          0x00008a0a   movw r0, 35640 ; str.WAYTOGOSOLVEDIT_                   
+          0x00008a0e   movt r0, 0                              
+          0x00008a12   blx sym.imp.puts ;[3]
+          ...
+
+This is a call to "puts" lybrary function (not a surprise, it appeared in the import list provided by rabin2). So we are looking at our final target: to make it possible for the program counter hit the address 0x00008a0a. If we climb back to the beginning of the function (using arrow keys or hjkl keys), we have an overview of the main function, which beginning is:
+
+          0x000088d4   push {r4, r7, lr} 
+          0x000088d6   sub sp, 52                                                   
+          0x000088d8   add r7, sp, 0                                               
+          0x000088da   movw r3, 35440 ; str._TU_KU_KRXMS 
+          0x000088de   movt r3, 0 
+          0x000088e2   str r3, [r7, 40]
+
+The first thing it does is storing a pointer to the string "`TU_KU_KRXMS", into the local variable [r7, 40]. This is likely to be the password, or rather an encrypted version of it. For brevity i summarize what the main function does, in a nutshell:
+  
+  1. allocate a number of buffers using malloc(), all of them of length 12 (the same length of the password, excluding terminator) and storing resulting pointers into local variables
+
+  2. print the welcome message
+
+  3. try to detect debugging using the ptrace return value trick, if it is the case then exit
+
+  4. setup a timeout of 50 seconds using the alarm signal, after which a callback terminates the program
+
+  5. copy the encrypted password to a number of previously allocated buffers, using memcpy()
+
+  6. ask for input using fgets() on stdin, check that string length is 12 otherwise exit
+
+  7. run the comparison function the first time, checking that input string is NOT the ENCRYPTED pass. If it is the case, then exits (only after calling system("yes FAIL") to maximize humiliation ;) ...)
+
+  8. decrypts the encrypted password, calling the decription function repeatedly, one time per byte of the "cyphertext" and storing back the result in the same place
+
+  9. call the comparison function, this time checking that input IS equal to DECRYPTED password
+
+A side note about the comparison function: it actually compares only the first 11 chars, so the possible solutions are all passwords of length 12 in which the first 11 chars are equal to the decrypted passphrase.
+
+Chapter 3 - The decryption
+==========================
+
+Here and there it is crowded with useless instructions, in order to obfuscate the code. The following analysis of the decryption function shows an example of this, and a general way to circumvent this type of obfuscation.
+
+Plain decryption function, reported in its entirety:
+
+           0x0000877c   push {r7}
+           0x0000877e   sub sp, 36
+           0x00008780   add r7, sp, 0
+           0x00008782   str r0, [r7, 12]       <--- (E)
+           0x00008784   str r1, [r7, 8]
+           0x00008786   str r2, [r7, 4]        <--- (D)
+           0x00008788   str r3, [r7, 0]
+           0x0000878a   mov.w r3, 52
+           0x0000878e   str r3, [r7, 28]
+           0x00008790   ldr r3, [r7, 12]
+           0x00008792   cmp r3, 10
+       ,=< 0x00008794   ble.n 0x000087a2 ;[2]
+       |   0x00008796   ldr r3, [r7, 12]
+       |   0x00008798   str r3, [r7, 4]        <--- (C)
+       |   0x0000879a   mov.w r3, 22
+       |   0x0000879e   str r3, [r7, 24]
+      ,==< 0x000087a0   b.n 0x000087ac ;[4]
+      |`-> 0x000087a2   ldr r3, [r7, 0]
+      |    0x000087a4   str r3, [r7, 8]
+      |    0x000087a6   mov.w r3, 12
+      |    0x000087aa   str r3, [r7, 24]
+      `--> 0x000087ac   ldr r3, [r7, 4]
+           0x000087ae   cmp r3, 65
+     ,===< 0x000087b0   ble.n 0x000087c4 ;[6]
+     |     0x000087b2   ldr r2, [r7, 8]
+     |     0x000087b4   ldr r3, [r7, 4]
+     |     0x000087b6   eor.w r3, r2, r3
+     |     0x000087ba   str r3, [r7, 12]
+     |     0x000087bc   mov.w r3, 15
+     |     0x000087c0   str r3, [r7, 28]
+    ,====< 0x000087c2   b.n 0x000087d4 ;[8]
+    |`---> 0x000087c4   ldr r3, [r7, 12]
+    |      0x000087c6   cmp r3, 18
+   ,=====< 0x000087c8   bne.n 0x000087d4 ;[8]
+   ||      0x000087ca   ldr r3, [r7, 12]
+   ||      0x000087cc   ldr r2, [r7, 12]
+   ||      0x000087ce   mul.w r3, r2, r3
+   ||      0x000087d2   str r3, [r7, 0]
+    ``-->  0x000087d4   ldr r3, [r7, 12]
+           0x000087d6   sub.w r3, r3, 18
+           0x000087da   str r3, [r7, 12]
+           0x000087dc   ldr r3, [r7, 4]
+           0x000087de   mov.w r3, r3, asr 2
+           0x000087e2   str r3, [r7, 0]
+           0x000087e4   ldr r2, [r7, 12]
+           0x000087e6   ldr r3, [r7, 8]
+           0x000087e8   adds r2, r2, r3
+           0x000087ea   ldr r3, [r7, 4]
+           0x000087ec   adds r2, r2, r3
+           0x000087ee   ldr r3, [r7, 0]
+           0x000087f0   adds r3, r2, r3
+           0x000087f2   str r3, [r7, 20]
+           0x000087f4   ldr r3, [r7, 4]         <--- (B)
+           0x000087f6   add.w r3, r3, 20
+           0x000087fa   mov r0, r3              <--- (A)
+           0x000087fc   add.w r7, r7, 36
+           0x00008800   mov sp, r7
+           0x00008802   pop {r7}
+
+In order to avoid wasting time in making sense of every line of code, an useful way is to start from the end. By the AAPCS calling convention, return value is stored in r0, so let's track which data and lines of code are useful to produce the value finally stored in r0:
+
+  (A) the value of r0 comes from r3
+
+  (B) value r3 comes from local variable stored in [r7, 4]
+
+  (C) value stored in [r7, 4] can come from line 0x00008798 if the above branch is not taken
+
+  (D) by default, the value in [r7, 4] comes from argument 3 ( stored in r2 by the AAPCS calling convention )
+
+  (E) the comparison at line 0x00008792, considers the value of [r7, 12], which comes from argument 1 (stored in r0 by the AAPCS calling convention) 
+
+After the above observation, it is possible to condense all the logic of the above function in the following few lines, which are really useful:
+
+           0x0000877c   push {r7}
+           0x0000877e   sub sp, 36
+           0x00008780   add r7, sp, 0
+           0x00008782   str r0, [r7, 12]       <--- (E)
+           0x00008786   str r2, [r7, 4]        <--- (D)
+           0x00008790   ldr r3, [r7, 12]
+           0x00008792   cmp r3, 10
+       ,=< 0x00008794   ble.n 0x000087a2 ;[2]
+       |   0x00008796   ldr r3, [r7, 12]
+       |   0x00008798   str r3, [r7, 4]        <--- (C)
+       `-> ...
+           0x000087ac   ldr r3, [r7, 4]        <--- (B)
+           0x000087f6   add.w r3, r3, 20
+           0x000087fa   mov r0, r3             <--- (A)
+           0x000087fc   add.w r7, r7, 36
+           0x00008800   mov sp, r7
+           0x00008802   pop {r7}
+
+Even a blind translation of this thing into python leads to something like this:
+
+           def decrypt(enc_byte, length):
+              result = length
+              if enc_byte > 10:
+                  result = enc_byte
+              return result + 20
+
+which in fact is the key of the solution.
+
+This decryption function is called for each byte of the encrypted password, to produce the cleartext password that will be compared with user input. Since encrypted chars are "`TU_KU_KRXMS", the check at line 0x00008792 is useless because the jump is actually never taken. Therefore our python function reduces to:
+
+           def decrypt(enc_byte, length):
+              return enc_byte + 20
+
+Understood that, the decryption of the whole password can be reduced to the funny one-liner:
+
+           "".join([chr( ord(b) + 20 ) for b in "`TU_KU_KRXMS"])
+
+which produces the string "this_is_flag"
